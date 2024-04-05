@@ -34,6 +34,13 @@ func Hash2File(store KVStore, hash []byte, path string, hp HashPool) []byte {
 					// 如果链接的类型是 list，获取文件的完整内容
 					if string(obj.Data[i][0]) == "list" {
 						return retrieveList(store, link.Hash)
+					} else if string(obj.Data[i][0]) == "blob" {
+						// 从kvstore中获取文件内容
+						value, err := store.Get(link.Hash)
+						if err != nil {
+							return nil
+						}
+						return value
 					}
 					// 否则，直接返回链接的哈希值
 					return link.Hash
@@ -45,9 +52,7 @@ func Hash2File(store KVStore, hash []byte, path string, hp HashPool) []byte {
 		// 如果没有找到匹配的链接，返回 nil
 		return nil
 	}
-
-	// 如果对象不是目录，那么它应该是一个文件，所以返回文件的数据
-	return obj.Data[0]
+	return nil
 }
 
 // retrieveList 函数遍历链表并获取每个块的内容
@@ -70,8 +75,15 @@ func retrieveList(store KVStore, hash []byte) []byte {
 			return nil
 		}
 
-		// 将节点的哈希值添加到数据中
-		data = append(data, node.Hash...)
+		// 从 KVStore 中获取分片的文件内容
+		fileData, err := store.Get(node.Hash)
+		if err != nil {
+			return nil
+		}
+
+		// 将分片的文件内容添加到数据中
+		data = append(data, fileData...)
+
 		// 更新下一个哈希值
 		nextHash = node.Next
 	}
